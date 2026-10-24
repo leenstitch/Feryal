@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Feryal.API/Feryal.API.csproj" Id="923974a6-7b92-4733-ac99-7a682898ea6c" />
+  <Project Path="Feryal.Application/Feryal.Application.csproj" />
+  <Project Path="Feryal.Domain/Feryal.Domain.csproj" />
+  <Project Path="Feryal.Infrastructure/Feryal.Infrastructure.csproj" />
+</Solution>

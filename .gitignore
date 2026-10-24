@@ -1,0 +1,33 @@
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build output
+bin/
+obj/
+Debug/
+Release/
+
+# NuGet
+packages/
+
+# Logs
+*.log
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+**/appsettings.Development.json
+Feryal.API/appsettings.json
+Feryal.API/Properties/PublishProfiles/
+Feryal.Infrastructure/Identity/IdentitySeeder.cs
+# Local databases and certificates
+*.mdf
+*.ldf
+*.pfx
+*.p12
