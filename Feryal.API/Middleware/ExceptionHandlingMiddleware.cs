@@ -8,6 +8,7 @@ public class ExceptionHandlingMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
+    // Initializes the middleware with the next request delegate and logger.
     public ExceptionHandlingMiddleware(
         RequestDelegate next,
         ILogger<ExceptionHandlingMiddleware> logger)
@@ -16,6 +17,7 @@ public class ExceptionHandlingMiddleware
         _logger = logger;
     }
 
+    // Processes HTTP requests and handles exceptions by returning appropriate HTTP error responses.
     public async Task InvokeAsync(
         HttpContext context)
     {
@@ -77,6 +79,8 @@ public class ExceptionHandlingMiddleware
                 ex.ToString());
         }
     }
+
+    // Writes an HTTP error response with the specified status code and problem details.
     private static async Task WriteResponseAsync(
         HttpContext context,
         int statusCode,

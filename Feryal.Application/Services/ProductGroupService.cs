@@ -1,5 +1,4 @@
-﻿
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Feryal.Application.DTOs.Common;
 using Feryal.Application.DTOs.ProductGroups;
@@ -11,14 +10,25 @@ using Microsoft.Extensions.Logging;
 
 namespace Feryal.Application.Services.ProductGroups;
 
+// Handles product group operations, including creation, updates, deletion, and cache invalidation.
 public class ProductGroupService : IProductGroupService
 {
+    // Provides database operations for product groups.
     private readonly IProductGroupRepository _productGroupRepository;
+
+    // Coordinates saving changes to the database.
     private readonly IUnitOfWork _unitOfWork;
+
+    // Records product group operations and related events.
     private readonly ILogger<ProductGroupService> _logger;
+
+    // Provides cached product group data.
     private readonly IProductGroupCacheService _productGroupCacheService;
+
+    // Stores cache invalidation events for reliable processing.
     private readonly IOutboxMessageRepository _outboxMessageRepository;
 
+    // Initializes the service with its required dependencies.
     public ProductGroupService(
         IProductGroupRepository productGroupRepository,
         IUnitOfWork unitOfWork,
@@ -33,6 +43,7 @@ public class ProductGroupService : IProductGroupService
         _outboxMessageRepository = outboxMessageRepository;
     }
 
+    // Retrieves a paginated list of product groups after validating the pagination parameters.
     public async Task<PagedResponse<ProductGroupResponse>> GetAllAsync(
         int pageNumber,
         int pageSize,
@@ -56,6 +67,7 @@ public class ProductGroupService : IProductGroupService
             cancellationToken);
     }
 
+    // Retrieves a product group by its ID or throws an exception if it is not found.
     public async Task<ProductGroupResponse> GetByIdAsync(
         int id,
         CancellationToken cancellationToken)
@@ -73,6 +85,7 @@ public class ProductGroupService : IProductGroupService
         return productGroup;
     }
 
+    // Creates a product group after validating its fields and checking for duplicate names.
     public async Task<ProductGroupResponse> CreateAsync(
         CreateProductGroupRequest request,
         CancellationToken cancellationToken)
@@ -137,6 +150,7 @@ public class ProductGroupService : IProductGroupService
         return MapToResponse(productGroup);
     }
 
+    // Updates the name or description of an existing product group after validating the supplied fields.
     public async Task<ProductGroupResponse> UpdateAsync(
         int id,
         UpdateProductGroupRequest request,
@@ -241,6 +255,7 @@ public class ProductGroupService : IProductGroupService
         return MapToResponse(productGroup);
     }
 
+    // Deletes a product group if it exists and has no associated products.
     public async Task DeleteAsync(
         int id,
         CancellationToken cancellationToken)
@@ -279,6 +294,7 @@ public class ProductGroupService : IProductGroupService
             id);
     }
 
+    // Activates an existing product group and schedules cache invalidation.
     public async Task<ProductGroupResponse> ActivateAsync(
         int id,
         CancellationToken cancellationToken)
@@ -308,6 +324,7 @@ public class ProductGroupService : IProductGroupService
         return MapToResponse(productGroup);
     }
 
+    // Deactivates an existing product group and schedules cache invalidation.
     public async Task<ProductGroupResponse> DeactivateAsync(
         int id,
         CancellationToken cancellationToken)
@@ -337,6 +354,7 @@ public class ProductGroupService : IProductGroupService
         return MapToResponse(productGroup);
     }
 
+    // Creates an outbox message requesting invalidation of product group caches.
     private void AddCacheInvalidationMessage(int? productGroupId)
     {
         var cacheInvalidationEvent =
@@ -352,6 +370,7 @@ public class ProductGroupService : IProductGroupService
         _outboxMessageRepository.Add(outboxMessage);
     }
 
+    // Maps a product group entity to its response DTO.
     private static ProductGroupResponse MapToResponse(
         ProductGroup productGroup)
     {

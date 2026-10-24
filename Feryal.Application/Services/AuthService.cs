@@ -3,17 +3,31 @@ using Feryal.Application.Interfaces;
 using Feryal.Domain.Entities;
 using System.Data;
 using Feryal.Application.Exceptions;
+
 namespace Feryal.Application.Services;
 
+// Handles user registration, login, token refresh, and logout operations.
 public class AuthService : IAuthService
 {
+    // Provides user identity operations, including account lookup and validation.
     private readonly IIdentityService _identityService;
+
+    // Generates JWT access tokens.
     private readonly IJwtService _jwtService;
+
+    // Generates refresh tokens and determines their expiration dates.
     private readonly IRefreshTokenService _refreshTokenService;
+
+    // Manages refresh token persistence and revocation.
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+
+    // Executes operations within database transactions.
     private readonly ITransactionManager _transactionManager;
+
+    // Hashes refresh tokens before they are stored or searched in the database.
     private readonly IRefreshTokenHasher _refreshTokenHasher;
 
+    // Initializes the authentication service with its required dependencies.
     public AuthService(
         IIdentityService identityService,
         IJwtService jwtService,
@@ -30,6 +44,7 @@ public class AuthService : IAuthService
         _refreshTokenHasher = refreshTokenHasher;
     }
 
+    // Registers a new user, assigns the customer role, and generates authentication tokens.
     public async Task<AuthResponse> RegisterAsync(
         RegisterRequest request,
         CancellationToken cancellationToken)
@@ -75,6 +90,7 @@ public class AuthService : IAuthService
             cancellationToken);
     }
 
+    // Authenticates a user by validating their email, account status, lockout status, and password.
     public async Task<AuthResponse> LoginAsync(
         LoginRequest request,
         CancellationToken cancellationToken)
@@ -126,6 +142,7 @@ public class AuthService : IAuthService
             cancellationToken);
     }
 
+    // Validates an existing refresh token, rotates it, and generates a new access token.
     public async Task<AuthResponse> RefreshAsync(
         RefreshRequest request,
         CancellationToken cancellationToken)
@@ -229,6 +246,7 @@ public class AuthService : IAuthService
             cancellationToken);
     }
 
+    // Increments the user's token version and revokes all active refresh tokens.
     public async Task LogoutAsync(
         int userId,
         CancellationToken cancellationToken)
@@ -253,6 +271,7 @@ public class AuthService : IAuthService
             cancellationToken);
     }
 
+    // Generates authentication tokens, stores the hashed refresh token, and builds the authentication response.
     private async Task<AuthResponse>
         CreateAuthResponseAsync(
             int userId,

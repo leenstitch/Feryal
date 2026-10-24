@@ -1,5 +1,4 @@
-﻿
-using Feryal.Application.DTOs.Delivery;
+﻿using Feryal.Application.DTOs.Delivery;
 using Feryal.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,12 +10,14 @@ public sealed class PickupPointsController : ControllerBase
 {
     private readonly IDeliverySettingsService _deliverySettingsService;
 
+    // Initializes the controller with the delivery settings service.
     public PickupPointsController(
         IDeliverySettingsService deliverySettingsService)
     {
         _deliverySettingsService = deliverySettingsService;
     }
 
+    // Creates a new pickup point and returns its location and details.
     [HttpPost]
     public async Task<IActionResult> Create(
         [FromBody] CreatePickupPointRequest request,
@@ -32,6 +33,7 @@ public sealed class PickupPointsController : ControllerBase
             result);
     }
 
+    // Updates the specified pickup point using the provided patch request.
     [HttpPatch("{id:int}")]
     public async Task<IActionResult> Patch(
         int id,
@@ -54,6 +56,7 @@ public sealed class PickupPointsController : ControllerBase
         return Ok(result);
     }
 
+    // Retrieves all pickup points, including active and inactive points, for administration.
     // Admin: all pickup points, active and inactive.
     [HttpGet("admin")]
     public async Task<IActionResult> GetAllForAdmin(
@@ -78,6 +81,7 @@ public sealed class PickupPointsController : ControllerBase
         return Ok(result);
     }
 
+    // Retrieves only active pickup points for customers with pagination.
     // Customer: active pickup points only.
     [HttpGet("active")]
     public async Task<IActionResult> GetActiveForCustomers(
@@ -102,6 +106,7 @@ public sealed class PickupPointsController : ControllerBase
         return Ok(result);
     }
 
+    // Retrieves a pickup point by its ID.
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(
         int id,
@@ -122,6 +127,7 @@ public sealed class PickupPointsController : ControllerBase
         return Ok(result);
     }
 
+    // Validates that the page number is at least 1 and the page size is between 1 and 100.
     private static bool IsValidPagination(
         int pageNumber,
         int pageSize)

@@ -14,11 +14,13 @@ public sealed class AdminOrdersController : ControllerBase
 {
     private readonly IOrderService _orderService;
 
+    // Initializes the controller with the order service.
     public AdminOrdersController(IOrderService orderService)
     {
         _orderService = orderService;
     }
 
+    // Retrieves a paginated list of orders with optional filtering by status, search term, delivery city, and pickup point.
     [HttpGet]
     [ProducesResponseType(
         typeof(PagedOrdersResponse),
@@ -52,6 +54,7 @@ public sealed class AdminOrdersController : ControllerBase
         return Ok(response);
     }
 
+    // Retrieves the details of a specific order by its ID.
     [HttpGet("{orderId:int}")]
     [ProducesResponseType(
         typeof(OrderDetailsResponse),
@@ -70,6 +73,7 @@ public sealed class AdminOrdersController : ControllerBase
             : Ok(order);
     }
 
+    // Updates the status of a specific order.
     [HttpPatch("{orderId:int}/status")]
     [ProducesResponseType(
         typeof(OrderDetailsResponse),
@@ -90,6 +94,7 @@ public sealed class AdminOrdersController : ControllerBase
             : Ok(order);
     }
 
+    // Maps an order entity to an order details response, including its items and primary product images.
     private static OrderDetailsResponse MapOrder(Order order)
     {
         var items = order.Items.Select(item =>

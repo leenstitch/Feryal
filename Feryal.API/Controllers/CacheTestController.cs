@@ -1,5 +1,4 @@
-﻿
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 
@@ -12,11 +11,13 @@ public class CacheTestController : ControllerBase
 {
     private readonly IDistributedCache _cache;
 
+    // Initializes the controller with the distributed cache service.
     public CacheTestController(IDistributedCache cache)
     {
         _cache = cache;
     }
 
+    // Tests Redis caching by storing a value, retrieving it, and verifying that the retrieved value matches the original.
     [HttpGet]
     public async Task<IActionResult> Test()
     {
@@ -34,7 +35,7 @@ public class CacheTestController : ControllerBase
 
         var result = await _cache.GetStringAsync(key);
 
-      //  await _cache.RemoveAsync(key);
+        //  await _cache.RemoveAsync(key);
 
         if (result != value)
         {

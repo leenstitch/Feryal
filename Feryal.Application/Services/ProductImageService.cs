@@ -1,5 +1,4 @@
-﻿
-using System.Data;
+﻿using System.Data;
 using System.Text.Json;
 using Feryal.Application.Events.Products;
 using Feryal.Application.Interfaces;
@@ -9,13 +8,18 @@ using Feryal.Domain.Entities;
 using Feryal.Application.Interfaces;
 using Microsoft.Extensions.Logging;
 
+// Provides product image management operations using Cloudinary storage and database transactions.
 namespace Feryal.Infrastructure.Products;
 
 public sealed class ProductImageService : IProductImageService
 {
+    // Defines the maximum number of images allowed for a product.
     private const int MaximumImagesPerProduct = 20;
+
+    // Defines the maximum allowed image file size in bytes (5 MB).
     private const long MaximumFileSize = 5 * 1024 * 1024;
 
+    // Lists the file extensions accepted for uploaded images.
     private static readonly HashSet<string> AllowedExtensions =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -25,6 +29,7 @@ public sealed class ProductImageService : IProductImageService
             ".webp"
         };
 
+    // Lists the MIME content types accepted for uploaded images.
     private static readonly HashSet<string> AllowedContentTypes =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -33,14 +38,28 @@ public sealed class ProductImageService : IProductImageService
             "image/webp"
         };
 
+    // Provides database operations for products.
     private readonly IProductRepository _productRepository;
+
+    // Provides database operations for product images.
     private readonly IRepository<ProductImage> _imageRepository;
+
+    // Handles uploading and deleting images in Cloudinary.
     private readonly ICloudinaryImageStorage _storage;
+
+    // Stores cache invalidation events in the outbox.
     private readonly IOutboxMessageRepository _outboxRepository;
+
+    // Coordinates saving changes to the database.
     private readonly IUnitOfWork _unitOfWork;
+
+    // Executes database operations within transactions.
     private readonly ITransactionManager _transactionManager;
+
+    // Records image storage and deletion errors.
     private readonly ILogger<ProductImageService> _logger;
 
+    // Initializes the product image service with its required dependencies.
     public ProductImageService(
         IProductRepository productRepository,
         IRepository<ProductImage> imageRepository,
@@ -59,6 +78,7 @@ public sealed class ProductImageService : IProductImageService
         _logger = logger;
     }
 
+    // Uploads new images for a product, optionally selects a new primary image, and invalidates the product cache.
     public async Task<IReadOnlyList<ProductImageResponse>> AddImagesAsync(
         int productId,
         IReadOnlyCollection<ProductImageUpload> newImages,
@@ -84,6 +104,7 @@ public sealed class ProductImageService : IProductImageService
 
         try
         {
+            // Uploads the image files to Cloudinary before starting the database transaction.
             foreach (var image in newImages)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -99,6 +120,7 @@ public sealed class ProductImageService : IProductImageService
                     IReadOnlyList<ProductImageResponse>>(
                     async token =>
                     {
+                        // Retrieves the product and its images for update.
                         var product =
                             await _productRepository
                                 .GetByIdWithDetailsForUpdateAsync(
@@ -113,6 +135,7 @@ public sealed class ProductImageService : IProductImageService
 
                         var currentImages = product.Images.ToList();
 
+                        // Ensures the product does not exceed its maximum image count.
                         if (currentImages.Count + uploaded.Count >
                             MaximumImagesPerProduct)
                         {
@@ -123,12 +146,14 @@ public sealed class ProductImageService : IProductImageService
                         var oldPrimary = currentImages
                             .FirstOrDefault(image => image.IsPrimary);
 
+                        // Uses the requested primary image index or selects the first image when no primary exists.
                         var selectedPrimaryIndex =
                             primaryNewImageIndex ??
                             (oldPrimary is null ? 0 : -1);
 
                         if (selectedPrimaryIndex >= 0)
                         {
+                            // Clears the current primary image when a new primary image is selected.
                             foreach (var image in currentImages)
                             {
                                 image.SetPrimary(false);
@@ -137,11 +162,13 @@ public sealed class ProductImageService : IProductImageService
                             await _unitOfWork.SaveChangesAsync(token);
                         }
 
+                        // Determines the display order for the newly added images.
                         var nextOrder = currentImages.Count == 0
                             ? 0
                             : currentImages.Max(
                                 image => image.DisplayOrder) + 1;
 
+                        // Creates product image entities using the uploaded Cloudinary image details.
                         for (var index = 0;
                              index < uploaded.Count;
                              index++)
@@ -158,6 +185,7 @@ public sealed class ProductImageService : IProductImageService
                             product.AddImage(image);
                         }
 
+                        // Schedules product cache invalidation through the outbox.
                         AddInvalidation(productId);
 
                         await _unitOfWork.SaveChangesAsync(token);
@@ -173,6 +201,7 @@ public sealed class ProductImageService : IProductImageService
         }
         catch
         {
+            // Removes uploaded Cloudinary images if the database operation did not commit.
             if (!databaseCommitted)
             {
                 await CleanupUploadedImagesAsync(uploaded);
@@ -182,6 +211,7 @@ public sealed class ProductImageService : IProductImageService
         }
     }
 
+    // Updates a product's image collection by retaining, adding, and removing images and selecting a primary image.
     public async Task<IReadOnlyList<ProductImageResponse>> UpdateImagesAsync(
         int productId,
         IReadOnlyCollection<int> keepImageIds,
@@ -195,6 +225,7 @@ public sealed class ProductImageService : IProductImageService
         ArgumentNullException.ThrowIfNull(keepImageIds);
         ValidateFiles(newImages);
 
+        // Ensures all retained image IDs are positive.
         if (keepImageIds.Any(id => id <= 0))
         {
             throw new ArgumentException(
@@ -202,6 +233,7 @@ public sealed class ProductImageService : IProductImageService
                 nameof(keepImageIds));
         }
 
+        // Prevents duplicate image IDs in the retained image collection.
         if (keepImageIds.Distinct().Count() != keepImageIds.Count)
         {
             throw new ArgumentException(
@@ -209,12 +241,14 @@ public sealed class ProductImageService : IProductImageService
                 nameof(keepImageIds));
         }
 
+        // Validates the ID of the requested existing primary image.
         if (primaryImageId.HasValue && primaryImageId.Value <= 0)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(primaryImageId));
         }
 
+        // Ensures that only one primary image selection method is used.
         if (primaryImageId.HasValue &&
             primaryNewImageIndex.HasValue)
         {
@@ -226,6 +260,7 @@ public sealed class ProductImageService : IProductImageService
             primaryNewImageIndex,
             newImages.Count);
 
+        // Checks the combined number of retained and newly uploaded images.
         if (keepImageIds.Count + newImages.Count >
             MaximumImagesPerProduct)
         {
@@ -239,6 +274,7 @@ public sealed class ProductImageService : IProductImageService
 
         try
         {
+            // Uploads new images to Cloudinary before updating the database.
             foreach (var image in newImages)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -254,6 +290,7 @@ public sealed class ProductImageService : IProductImageService
                     IReadOnlyList<ProductImageResponse>>(
                     async token =>
                     {
+                        // Retrieves the product and its images for update.
                         var product =
                             await _productRepository
                                 .GetByIdWithDetailsForUpdateAsync(
@@ -266,11 +303,13 @@ public sealed class ProductImageService : IProductImageService
                                 "Product was not found.");
                         }
 
+                        // Orders the existing images by display order and ID.
                         var currentImages = product.Images
                             .OrderBy(image => image.DisplayOrder)
                             .ThenBy(image => image.Id)
                             .ToList();
 
+                        // Ensures all retained image IDs belong to this product.
                         if (keepImageIds.Any(
                             id => currentImages.All(
                                 image => image.Id != id)))
@@ -279,6 +318,7 @@ public sealed class ProductImageService : IProductImageService
                                 "One or more image IDs do not belong to this product.");
                         }
 
+                        // Revalidates the total image count using the uploaded results.
                         if (keepImageIds.Count + uploaded.Count >
                             MaximumImagesPerProduct)
                         {
@@ -286,6 +326,7 @@ public sealed class ProductImageService : IProductImageService
                                 $"A product cannot have more than {MaximumImagesPerProduct} images.");
                         }
 
+                        // Ensures the selected existing primary image is retained.
                         if (primaryImageId.HasValue &&
                             keepImageIds.All(
                                 id => id != primaryImageId.Value))
@@ -294,6 +335,7 @@ public sealed class ProductImageService : IProductImageService
                                 "The primary image must be included in the retained image IDs.");
                         }
 
+                        // Separates the images that will be retained from those that will be removed.
                         var retainedImages = currentImages
                             .Where(image => keepImageIds.Contains(image.Id))
                             .ToList();
@@ -308,6 +350,7 @@ public sealed class ProductImageService : IProductImageService
 
                         int? chosenPrimaryId = primaryImageId;
 
+                        // Preserves the previous primary image when possible, otherwise selects the first retained image.
                         if (!primaryImageId.HasValue &&
                             !primaryNewImageIndex.HasValue)
                         {
@@ -319,7 +362,7 @@ public sealed class ProductImageService : IProductImageService
                                     : retainedImages.FirstOrDefault()?.Id;
                         }
 
-                        // Clear the existing primary before selecting another.
+                        // Clears the existing primary status before choosing the new primary image.
                         foreach (var image in currentImages)
                         {
                             image.SetPrimary(false);
@@ -327,6 +370,7 @@ public sealed class ProductImageService : IProductImageService
 
                         await _unitOfWork.SaveChangesAsync(token);
 
+                        // Removes unwanted images from the product and records their Cloudinary public IDs for deletion.
                         foreach (var image in removedImages)
                         {
                             product.RemoveImage(image);
@@ -334,6 +378,7 @@ public sealed class ProductImageService : IProductImageService
                             removedPublicIds.Add(image.PublicId);
                         }
 
+                        // Reassigns display order to the retained images.
                         for (var index = 0;
                              index < retainedImages.Count;
                              index++)
@@ -343,6 +388,7 @@ public sealed class ProductImageService : IProductImageService
 
                         var newEntities = new List<ProductImage>();
 
+                        // Creates entities for newly uploaded images.
                         for (var index = 0;
                              index < uploaded.Count;
                              index++)
@@ -360,27 +406,32 @@ public sealed class ProductImageService : IProductImageService
                             newEntities.Add(image);
                         }
 
+                        // Combines retained and newly created images into the final collection.
                         var finalImages = retainedImages
                             .Concat(newEntities)
                             .ToList();
 
                         ProductImage? selectedPrimary = null;
 
+                        // Selects the requested existing image as the primary image.
                         if (primaryImageId.HasValue)
                         {
                             selectedPrimary = retainedImages.Single(
                                 image => image.Id == primaryImageId.Value);
                         }
+                        // Selects a newly uploaded image as the primary image when requested.
                         else if (primaryNewImageIndex.HasValue)
                         {
                             selectedPrimary =
                                 newEntities[primaryNewImageIndex.Value];
                         }
+                        // Preserves the chosen existing primary image when possible.
                         else if (chosenPrimaryId.HasValue)
                         {
                             selectedPrimary = retainedImages.First(
                                 image => image.Id == chosenPrimaryId.Value);
                         }
+                        // Selects the first available image when no primary image was chosen.
                         else
                         {
                             selectedPrimary = finalImages.FirstOrDefault();
@@ -388,8 +439,10 @@ public sealed class ProductImageService : IProductImageService
 
                         selectedPrimary?.SetPrimary(true);
 
+                        // Normalizes the display order of the final image collection.
                         NormalizeDisplayOrder(finalImages);
 
+                        // Schedules product cache invalidation through the outbox.
                         AddInvalidation(productId);
 
                         await _unitOfWork.SaveChangesAsync(token);
@@ -401,7 +454,7 @@ public sealed class ProductImageService : IProductImageService
 
             databaseCommitted = true;
 
-            // Database changes succeeded; now remove deleted assets from Cloudinary.
+            // Deletes removed images from Cloudinary after the database changes have committed.
             foreach (var publicId in removedPublicIds)
             {
                 await TryDeleteCloudinaryAsync(
@@ -413,6 +466,7 @@ public sealed class ProductImageService : IProductImageService
         }
         catch
         {
+            // Removes newly uploaded images if the database changes did not commit.
             if (!databaseCommitted)
             {
                 await CleanupUploadedImagesAsync(uploaded);
@@ -422,6 +476,7 @@ public sealed class ProductImageService : IProductImageService
         }
     }
 
+    // Deletes a product image from the database and Cloudinary, selecting a replacement primary image when necessary.
     public async Task DeleteImageAsync(
         int productId,
         int imageId,
@@ -439,6 +494,7 @@ public sealed class ProductImageService : IProductImageService
         await _transactionManager.ExecuteAsync<bool>(
             async token =>
             {
+                // Retrieves the product and its images for update.
                 var product =
                     await _productRepository
                         .GetByIdWithDetailsForUpdateAsync(
@@ -451,6 +507,7 @@ public sealed class ProductImageService : IProductImageService
                         "Product was not found.");
                 }
 
+                // Finds the requested image within the specified product.
                 var image = product.Images
                     .FirstOrDefault(item => item.Id == imageId);
 
@@ -464,9 +521,11 @@ public sealed class ProductImageService : IProductImageService
 
                 var wasPrimary = image.IsPrimary;
 
+                // Removes the image from the product and marks it for database deletion.
                 product.RemoveImage(image);
                 _imageRepository.Delete(image);
 
+                // Retrieves the remaining images in display order.
                 var remainingImages = product.Images
                     .OrderBy(item => item.DisplayOrder)
                     .ThenBy(item => item.Id)
@@ -474,6 +533,7 @@ public sealed class ProductImageService : IProductImageService
 
                 if (wasPrimary)
                 {
+                    // Clears primary status from all remaining images before selecting a replacement.
                     foreach (var remainingImage in remainingImages)
                     {
                         remainingImage.SetPrimary(false);
@@ -481,6 +541,7 @@ public sealed class ProductImageService : IProductImageService
 
                     await _unitOfWork.SaveChangesAsync(token);
 
+                    // Assigns primary status to the first remaining image, if one exists.
                     remainingImages
                         .FirstOrDefault()
                         ?.SetPrimary(true);
@@ -488,6 +549,7 @@ public sealed class ProductImageService : IProductImageService
 
                 NormalizeDisplayOrder(remainingImages);
 
+                // Schedules product cache invalidation through the outbox.
                 AddInvalidation(productId);
 
                 await _unitOfWork.SaveChangesAsync(token);
@@ -497,6 +559,7 @@ public sealed class ProductImageService : IProductImageService
             IsolationLevel.ReadCommitted,
             cancellationToken);
 
+        // Deletes the corresponding Cloudinary asset after the database transaction succeeds.
         if (publicId is not null)
         {
             await TryDeleteCloudinaryAsync(
@@ -505,6 +568,7 @@ public sealed class ProductImageService : IProductImageService
         }
     }
 
+    // Creates an outbox message requesting invalidation of the specified product's cache.
     private void AddInvalidation(int productId)
     {
         var payload = JsonSerializer.Serialize(
@@ -516,6 +580,7 @@ public sealed class ProductImageService : IProductImageService
                 payload));
     }
 
+    // Attempts to delete uploaded Cloudinary images when a database operation fails.
     private async Task CleanupUploadedImagesAsync(
         IEnumerable<CloudinaryImageResult> uploaded)
     {
@@ -527,6 +592,7 @@ public sealed class ProductImageService : IProductImageService
         }
     }
 
+    // Attempts to delete an image from Cloudinary and logs an error if deletion fails.
     private async Task TryDeleteCloudinaryAsync(
         string publicId,
         CancellationToken cancellationToken)
@@ -546,7 +612,7 @@ public sealed class ProductImageService : IProductImageService
         }
     }
 
-
+    // Maps product image entities to response DTOs ordered by primary status, display order, and ID.
     private static IReadOnlyList<ProductImageResponse> MapImages(
         IEnumerable<ProductImage> images)
     {
@@ -565,6 +631,7 @@ public sealed class ProductImageService : IProductImageService
             .ToList();
     }
 
+    // Reassigns sequential display order values to the supplied images.
     private static void NormalizeDisplayOrder(
         IEnumerable<ProductImage> images)
     {
@@ -579,6 +646,7 @@ public sealed class ProductImageService : IProductImageService
         }
     }
 
+    // Validates that the product ID is a positive integer.
     private static void ValidateProductId(int productId)
     {
         if (productId <= 0)
@@ -587,6 +655,7 @@ public sealed class ProductImageService : IProductImageService
         }
     }
 
+    // Validates uploaded image files against size, readability, extension, and content type requirements.
     private static void ValidateFiles(
         IReadOnlyCollection<ProductImageUpload> images)
     {
@@ -631,6 +700,7 @@ public sealed class ProductImageService : IProductImageService
         }
     }
 
+    // Validates that the selected primary image index falls within the range of uploaded files.
     private static void ValidatePrimaryNewIndex(
         int? primaryNewImageIndex,
         int newImagesCount)

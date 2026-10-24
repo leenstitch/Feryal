@@ -13,11 +13,13 @@ public class CategoriesController : ControllerBase
 {
     private readonly ICategoryService _categoryService;
 
+    // Initializes the controller with the category service.
     public CategoriesController(ICategoryService categoryService)
     {
         _categoryService = categoryService;
     }
 
+    // Retrieves all categories with pagination.
     [HttpGet]
     public async Task<ActionResult<PagedResponse<CategoryResponse>>> GetAll(
         [FromQuery] int pageNumber,
@@ -32,6 +34,7 @@ public class CategoriesController : ControllerBase
         return Ok(categories);
     }
 
+    // Retrieves a category by its ID.
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CategoryResponse>> GetById(
         int id,
@@ -44,6 +47,7 @@ public class CategoriesController : ControllerBase
         return Ok(category);
     }
 
+    // Creates a new category and returns its location and details.
     [HttpPost]
     public async Task<ActionResult<CategoryResponse>> Create(
         [FromBody] CreateCategoryRequest request,
@@ -59,6 +63,7 @@ public class CategoriesController : ControllerBase
             category);
     }
 
+    // Updates an existing category using the provided request data.
     [HttpPatch("{id:int}")]
     public async Task<ActionResult<CategoryResponse>> Update(
         int id,
@@ -73,6 +78,7 @@ public class CategoriesController : ControllerBase
         return Ok(category);
     }
 
+    // Deletes a category by its ID.
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(
         int id,
@@ -85,6 +91,7 @@ public class CategoriesController : ControllerBase
         return NoContent();
     }
 
+    // Activates a category by its ID.
     [HttpPatch("{id:int}/activate")]
     public async Task<ActionResult<CategoryResponse>> Activate(
     int id,
@@ -97,6 +104,7 @@ public class CategoriesController : ControllerBase
         return Ok(category);
     }
 
+    // Deactivates a category by its ID.
     [HttpPatch("{id:int}/deactivate")]
     public async Task<ActionResult<CategoryResponse>> Deactivate(
         int id,

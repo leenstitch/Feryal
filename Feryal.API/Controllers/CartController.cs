@@ -13,11 +13,13 @@ public sealed class CartController : ControllerBase
 {
     private readonly ICartService _cartService;
 
+    // Initializes the controller with the cart service.
     public CartController(ICartService cartService)
     {
         _cartService = cartService;
     }
 
+    // Retrieves the authenticated user's cart items with pagination.
     [HttpGet]
     [ProducesResponseType(
         typeof(CartPageResponse),
@@ -61,6 +63,7 @@ public sealed class CartController : ControllerBase
         }
     }
 
+    // Adds a product variant with the specified quantity to the authenticated user's cart.
     [HttpPost("items")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -108,6 +111,7 @@ public sealed class CartController : ControllerBase
         }
     }
 
+    // Increases the quantity of a product variant in the authenticated user's cart.
     [HttpPatch("items/{productVariantId:int}/increase")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -156,6 +160,7 @@ public sealed class CartController : ControllerBase
         }
     }
 
+    // Decreases the quantity of a product variant in the authenticated user's cart.
     [HttpPatch("items/{productVariantId:int}/decrease")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -197,6 +202,7 @@ public sealed class CartController : ControllerBase
         }
     }
 
+    // Removes a product variant from the authenticated user's cart.
     [HttpDelete("items/{productVariantId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -231,6 +237,7 @@ public sealed class CartController : ControllerBase
         }
     }
 
+    // Retrieves the authenticated user's ID from the claims principal.
     private int GetCurrentUserId()
     {
         var value = User.FindFirstValue(

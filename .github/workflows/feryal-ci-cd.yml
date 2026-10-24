@@ -1,0 +1,190 @@
+
+name: Feryal CI-CD
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feryal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    name: Build, Test and Deploy
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      # Download the repository source code.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Detect the Web API project, its .NET version, and the solution file.
+      - name: Detect project configuration
+        id: detect
+        shell: pwsh
+        run: |
+          $projects = @(
+            Get-ChildItem -Path . -Recurse -File -Filter *.csproj |
+            Where-Object {
+              $_.FullName -notmatch '[\\/](bin|obj|\.git)[\\/]'
+            }
+          )
+
+          $webProjects = @(
+            foreach ($project in $projects) {
+              [xml]$xml = Get-Content $project.FullName -Raw
+
+              if ($xml.Project.Sdk -eq "Microsoft.NET.Sdk.Web") {
+                $project
+              }
+            }
+          )
+
+          if ($webProjects.Count -ne 1) {
+            throw "Expected exactly one ASP.NET Core Web SDK project. Found $($webProjects.Count). Configure the workflow for your API project."
+          }
+
+          $webProject = $webProjects[0]
+          [xml]$webXml = Get-Content $webProject.FullName -Raw
+
+          $tfm = $webXml.Project.PropertyGroup |
+            ForEach-Object {
+              if ($_.TargetFramework) {
+                $_.TargetFramework
+              }
+              elseif ($_.TargetFrameworks) {
+                $_.TargetFrameworks -split ';' | Select-Object -First 1
+              }
+            } |
+            Select-Object -First 1
+
+          if ($tfm -notmatch '^net(\d+)\.(\d+)$') {
+            throw "Could not determine a supported .NET target framework from $($webProject.Name). Check its TargetFramework property."
+          }
+
+          $sdkVersion = "$($Matches[1]).$($Matches[2]).x"
+
+          $rootSolutions = @(
+            Get-ChildItem -Path . -File -Filter *.sln
+          )
+
+          $allSolutions = @(
+            Get-ChildItem -Path . -Recurse -File -Filter *.sln |
+            Where-Object {
+              $_.FullName -notmatch '[\\/](bin|obj|\.git)[\\/]'
+            }
+          )
+
+          if ($rootSolutions.Count -eq 1) {
+            $buildTarget = $rootSolutions[0].FullName
+          }
+          elseif ($allSolutions.Count -eq 1) {
+            $buildTarget = $allSolutions[0].FullName
+          }
+          elseif ($allSolutions.Count -gt 1) {
+            throw "Multiple solution files found. Keep one solution at the repository root or configure the build target explicitly."
+          }
+          else {
+            $buildTarget = $webProject.FullName
+          }
+
+          $testProjects = @(
+            $projects |
+            Where-Object {
+              $_.BaseName -match '(?i)(^|[._-])(unit)?tests?$'
+            }
+          )
+
+          "dotnet-version=$sdkVersion" >> $env:GITHUB_OUTPUT
+          "web-project=$($webProject.FullName)" >> $env:GITHUB_OUTPUT
+          "build-target=$buildTarget" >> $env:GITHUB_OUTPUT
+          "has-tests=$($testProjects.Count -gt 0)" >> $env:GITHUB_OUTPUT
+
+          Write-Host "Target framework: $tfm"
+          Write-Host "Web project: $($webProject.FullName)"
+          Write-Host "Build target: $buildTarget"
+          Write-Host "Test projects found: $($testProjects.Count)"
+
+      # Install the SDK matching the Web API target framework.
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ steps.detect.outputs.dotnet-version }}
+
+      # Restore NuGet packages.
+      - name: Restore dependencies
+        shell: pwsh
+        run: |
+          dotnet restore "${{ steps.detect.outputs.build-target }}"
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      # Compile the solution in Release configuration.
+      - name: Build solution
+        shell: pwsh
+        run: |
+          dotnet build "${{ steps.detect.outputs.build-target }}" --configuration Release --no-restore
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      # Run automated tests when a conventionally named test project exists.
+      - name: Run automated tests
+        if: steps.detect.outputs.has-tests == 'true'
+        shell: pwsh
+        run: |
+          $testProjects = @(
+            Get-ChildItem -Path . -Recurse -File -Filter *.csproj |
+            Where-Object {
+              $_.FullName -notmatch '[\\/](bin|obj|\.git)[\\/]' -and
+              $_.BaseName -match '(?i)(^|[._-])(unit)?tests?$'
+            }
+          )
+
+          foreach ($project in $testProjects) {
+            Write-Host "Testing $($project.FullName)"
+            dotnet test $project.FullName --configuration Release
+
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+          }
+
+      # Explain that tests are not configured yet when no test project exists.
+      - name: Report skipped tests
+        if: steps.detect.outputs.has-tests != 'true'
+        shell: pwsh
+        run: |
+          Write-Host "No test project was found. Build validation completed without automated tests."
+
+      # Publish the Web API for MonsterASP.NET's Windows hosting environment.
+      - name: Publish Web API
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          dotnet publish "${{ steps.detect.outputs.web-project }}" --configuration Release --output ./publish --runtime win-x86 --self-contained false
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      # Deploy only successful builds from the main branch.
+      - name: Deploy to MonsterASP.NET
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: rasmusbuchholdt/simply-web-deploy@2.1.0
+        with:
+          website-name: ${{ secrets.WEBSITE_NAME }}
+          server-computer-name: ${{ secrets.SERVER_COMPUTER_NAME }}
+          server-username: ${{ secrets.SERVER_USERNAME }}
+          server-password: ${{ secrets.SERVER_PASSWORD }}

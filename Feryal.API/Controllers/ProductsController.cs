@@ -1,5 +1,4 @@
-﻿
-using Feryal.Application.DTOs.Common;
+﻿using Feryal.Application.DTOs.Common;
 using Feryal.Application.DTOs.Products;
 using Feryal.Application.DTOs.Products.Request;
 using Feryal.Application.DTOs.Products.Response;
@@ -16,13 +15,13 @@ public sealed class ProductsController : ControllerBase
 {
     private readonly IProductService _productService;
 
+    // Initializes the controller with the product service.
     public ProductsController(IProductService productService)
     {
         _productService = productService;
     }
-   
 
-
+    // Retrieves all products for administration with pagination and query filters.
     [HttpGet("admin")]
     public async Task<ActionResult<PagedResponse<ProductResponse>>> GetAllProducts(
         [FromQuery] ProductQueryParameters parameters,
@@ -35,6 +34,7 @@ public sealed class ProductsController : ControllerBase
         return Ok(result);
     }
 
+    // Retrieves a product by its ID for administration.
     [HttpGet("admin/{productId:int}")]
     public async Task<ActionResult<ProductResponse>> GetProductById(
         int productId,
@@ -55,6 +55,7 @@ public sealed class ProductsController : ControllerBase
         return Ok(product);
     }
 
+    // Retrieves active products for the public catalog with pagination and query filters.
     [AllowAnonymous]
     [HttpGet("catalog")]
     public async Task<ActionResult<PagedResponse<ProductResponse>>> GetCatalog(
@@ -68,6 +69,7 @@ public sealed class ProductsController : ControllerBase
         return Ok(result);
     }
 
+    // Creates a new product using the provided request data.
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -95,6 +97,7 @@ public sealed class ProductsController : ControllerBase
         }
     }
 
+    // Updates selected properties of an existing product.
     [HttpPatch("{productId:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -139,6 +142,7 @@ public sealed class ProductsController : ControllerBase
         }
     }
 
+    // Activates a product by its ID.
     [HttpPatch("{productId:int}/activate")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -169,6 +173,7 @@ public sealed class ProductsController : ControllerBase
         return NoContent();
     }
 
+    // Deactivates a product by its ID.
     [HttpPatch("{productId:int}/deactivate")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -199,6 +204,7 @@ public sealed class ProductsController : ControllerBase
         return NoContent();
     }
 
+    // Adds a color option to the specified product.
     [HttpPost("{productId:int}/colors")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -245,6 +251,7 @@ public sealed class ProductsController : ControllerBase
         }
     }
 
+    // Adds a size option to the specified product.
     [HttpPost("{productId:int}/sizes")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -291,6 +298,7 @@ public sealed class ProductsController : ControllerBase
         }
     }
 
+    // Adds a scent option to the specified product.
     [HttpPost("{productId:int}/scents")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

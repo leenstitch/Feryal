@@ -1,5 +1,4 @@
-﻿
-using Feryal.Application.DTOs.Products;
+﻿using Feryal.Application.DTOs.Products;
 using Feryal.Application.DTOs.Products.Request;
 using Feryal.Application.Products.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -13,12 +12,14 @@ public sealed class ProductVariantsController : ControllerBase
 {
     private readonly IProductVariantService _variantService;
 
+    // Initializes the controller with the product variant service.
     public ProductVariantsController(
         IProductVariantService variantService)
     {
         _variantService = variantService;
     }
 
+    // Retrieves all variants of a product with the specified query filters.
     [HttpGet("~/api/products/{productId:int}/variants")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -51,6 +52,7 @@ public sealed class ProductVariantsController : ControllerBase
         return Ok(result);
     }
 
+    // Retrieves the available variants of a product with the specified query filters.
     [HttpGet("~/api/products/{productId:int}/variants/available")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -83,6 +85,7 @@ public sealed class ProductVariantsController : ControllerBase
         return Ok(result);
     }
 
+    // Updates the properties of an existing product variant.
     [HttpPatch("~/api/product-variants/{variantId:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -127,6 +130,7 @@ public sealed class ProductVariantsController : ControllerBase
         }
     }
 
+    // Activates a product variant by its ID.
     [HttpPatch("~/api/product-variants/{variantId:int}/activate")]
     public async Task<IActionResult> Activate(
         int variantId,
@@ -155,6 +159,7 @@ public sealed class ProductVariantsController : ControllerBase
         return NoContent();
     }
 
+    // Deactivates a product variant by its ID.
     [HttpPatch("~/api/product-variants/{variantId:int}/deactivate")]
     public async Task<IActionResult> Deactivate(
         int variantId,
@@ -183,6 +188,7 @@ public sealed class ProductVariantsController : ControllerBase
         return NoContent();
     }
 
+    // Makes a product variant visible.
     [HttpPatch("~/api/product-variants/{variantId:int}/show")]
     public async Task<IActionResult> Show(
         int variantId,
@@ -211,6 +217,7 @@ public sealed class ProductVariantsController : ControllerBase
         return NoContent();
     }
 
+    // Hides a product variant.
     [HttpPatch("~/api/product-variants/{variantId:int}/hide")]
     public async Task<IActionResult> Hide(
         int variantId,

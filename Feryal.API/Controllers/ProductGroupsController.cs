@@ -1,5 +1,4 @@
-﻿
-using Feryal.Application.DTOs.ProductGroups;
+﻿using Feryal.Application.DTOs.ProductGroups;
 using Feryal.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,12 +12,14 @@ public class ProductGroupsController : ControllerBase
 {
     private readonly IProductGroupService _productGroupService;
 
+    // Initializes the controller with the product group service.
     public ProductGroupsController(
         IProductGroupService productGroupService)
     {
         _productGroupService = productGroupService;
     }
 
+    // Retrieves all product groups with pagination.
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int pageNumber,
@@ -33,6 +34,7 @@ public class ProductGroupsController : ControllerBase
         return Ok(result);
     }
 
+    // Retrieves a product group by its ID.
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(
         int id,
@@ -45,6 +47,7 @@ public class ProductGroupsController : ControllerBase
         return Ok(result);
     }
 
+    // Creates a new product group and returns its location and details.
     [HttpPost]
     public async Task<IActionResult> Create(
         [FromBody] CreateProductGroupRequest request,
@@ -60,6 +63,7 @@ public class ProductGroupsController : ControllerBase
             result);
     }
 
+    // Updates an existing product group using the provided request data.
     [HttpPatch("{id:int}")]
     public async Task<IActionResult> Update(
         int id,
@@ -74,6 +78,7 @@ public class ProductGroupsController : ControllerBase
         return Ok(result);
     }
 
+    // Deletes a product group by its ID.
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(
         int id,
@@ -86,6 +91,7 @@ public class ProductGroupsController : ControllerBase
         return NoContent();
     }
 
+    // Activates a product group by its ID.
     [HttpPatch("{id:int}/activate")]
     public async Task<IActionResult> Activate(
         int id,
@@ -98,6 +104,7 @@ public class ProductGroupsController : ControllerBase
         return Ok(result);
     }
 
+    // Deactivates a product group by its ID.
     [HttpPatch("{id:int}/deactivate")]
     public async Task<IActionResult> Deactivate(
         int id,

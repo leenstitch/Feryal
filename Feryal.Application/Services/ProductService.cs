@@ -10,6 +10,7 @@ using Feryal.Application.Products.Images;
 using Feryal.Domain.Entities;
 
 namespace Feryal.Application.Products.Services;
+// Handles product creation, updates, options, variants, and product cache invalidation.
 
 public sealed class ProductService : IProductService
 {
@@ -42,6 +43,7 @@ public sealed class ProductService : IProductService
         _transactionManager = transactionManager;
     }
 
+    // Retrieves a paginated list of products using the supplied query parameters.
     public async Task<PagedResponse<ProductResponse>> GetPagedProductsAsync(
         ProductQueryParameters parameters,
         CancellationToken cancellationToken)
@@ -65,6 +67,8 @@ public sealed class ProductService : IProductService
             PageSize = Math.Clamp(parameters.PageSize, 1, 100)
         };
     }
+
+    // Maps a product variant entity to its response DTO.
     private static ProductVariantResponse MapVariant(
         ProductVariant variant)
     {
@@ -101,6 +105,7 @@ public sealed class ProductService : IProductService
         };
     }
 
+    // Maps a product entity and its related options, variants, and images to a response DTO.
     private static ProductResponse MapProduct(Product product)
     {
         return new ProductResponse
@@ -157,6 +162,8 @@ public sealed class ProductService : IProductService
         };
     }
 
+
+    // Retrieves a paginated list of active products.
     public async Task<PagedResponse<ProductResponse>> GetPagedActiveProductsAsync(
         ProductQueryParameters parameters,
         CancellationToken cancellationToken)
@@ -177,6 +184,7 @@ public sealed class ProductService : IProductService
         };
     }
 
+    // Retrieves a product with its related details by ID.
     public async Task<ProductResponse?> GetProductByIdAsync(
         int productId,
         CancellationToken cancellationToken)
@@ -201,6 +209,7 @@ public sealed class ProductService : IProductService
         return MapProduct(product);
     }
 
+    // Creates a product, its options, and the initial combinations of product variants.
     public async Task<CreatedProductResponse> CreateAsync(
         CreateProductRequest request,
         CancellationToken cancellationToken)
@@ -429,6 +438,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Updates the main details of an existing product.
     public async Task<ProductResponse?> UpdateAsync(
         int productId,
         UpdateProductRequest request,
@@ -532,7 +542,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
-
+    // Partially updates the supplied fields of an existing product.
     public async Task<ProductResponse?> PatchAsync(
         int productId,
         PatchProductRequest request,
@@ -706,6 +716,7 @@ public sealed class ProductService : IProductService
     }
 
 
+    // Adds a color option to a product and creates the missing related variants.
     public async Task<AddedProductOptionResponse?> AddColorAsync(
         int productId,
         CreateProductColorRequest request,
@@ -846,6 +857,8 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Adds a size option to a product and creates the missing related variants.
+
     public async Task<AddedProductOptionResponse?> AddSizeAsync(
         int productId,
         CreateProductSizeRequest request,
@@ -977,6 +990,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Adds a scent option to a product and creates the missing related variants.
     public async Task<AddedProductOptionResponse?> AddScentAsync(
         int productId,
         CreateProductScentRequest request,
@@ -1108,6 +1122,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Activates the specified product.
     public async Task<bool> ActivateAsync(
         int productId,
         CancellationToken cancellationToken)
@@ -1118,6 +1133,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Deactivates the specified product.
     public async Task<bool> DeactivateAsync(
         int productId,
         CancellationToken cancellationToken)
@@ -1128,6 +1144,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Updates the description, price, stock quantity, and discount of a product variant.
     public async Task<ProductVariantResponse?> UpdateVariantAsync(
         int variantId,
         UpdateProductVariantRequest request,
@@ -1304,6 +1321,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Activates the specified product variant.
     public async Task<bool> ActivateVariantAsync(
         int variantId,
         CancellationToken cancellationToken)
@@ -1314,6 +1332,8 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Deactivates the specified product variant.
+
     public async Task<bool> DeactivateVariantAsync(
         int variantId,
         CancellationToken cancellationToken)
@@ -1323,6 +1343,8 @@ public sealed class ProductService : IProductService
             false,
             cancellationToken);
     }
+
+    // Changes the active status of a product within a transaction.
 
     private async Task<bool> ChangeProductStatusAsync(
         int productId,
@@ -1373,6 +1395,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Changes the active status of a product variant within a transaction.
     private async Task<bool> ChangeVariantStatusAsync(
         int variantId,
         bool activate,
@@ -1422,6 +1445,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Retrieves all variants belonging to a product.
     public async Task<List<ProductVariantResponse>?> GetVariantsByProductIdAsync(
         int productId,
         CancellationToken cancellationToken)
@@ -1447,6 +1471,7 @@ public sealed class ProductService : IProductService
             .ToList();
     }
 
+    // Makes the specified product variant visible to customers.
     public Task<bool> ShowVariantAsync(
         int variantId,
         CancellationToken cancellationToken)
@@ -1457,6 +1482,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Hides the specified product variant from customers.
     public Task<bool> HideVariantAsync(
         int variantId,
         CancellationToken cancellationToken)
@@ -1467,6 +1493,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Changes whether a product variant is visible to customers.
     private async Task<bool> ChangeVariantVisibilityAsync(
         int variantId,
         bool show,
@@ -1516,6 +1543,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
+    // Retrieves the customer-visible variants for a product.
     public async Task<List<ProductVariantResponse>?> GetVisibleVariantsByProductIdAsync(
         int productId,
         CancellationToken cancellationToken)
@@ -1541,6 +1569,8 @@ public sealed class ProductService : IProductService
             .ToList();
     }
 
+
+    // Adds an outbox message requesting cache invalidation for a product.
     private void AddProductCacheInvalidation(int productId)
     {
         var cacheEvent =
@@ -1555,12 +1585,14 @@ public sealed class ProductService : IProductService
         _outboxRepository.Add(outboxMessage);
     }
 
+    // Generates a unique SKU for a product variant.
     private static string GenerateSku()
     {
         return $"FER-{Guid.NewGuid():N}"[..20]
             .ToUpperInvariant();
     }
 
+    // Validates that option names are non-empty and unique within the supplied collection.
     private static void ValidateUniqueNames(
         IEnumerable<string> names,
         string optionType)
@@ -1589,6 +1621,7 @@ public sealed class ProductService : IProductService
         }
     }
 
+    // Maps a product entity and its related data to a product response DTO.
     private static ProductResponse MapProductResponse(Product product)
     {
         return new ProductResponse
@@ -1651,6 +1684,7 @@ public sealed class ProductService : IProductService
         };
     }
 
+    // Maps a product variant entity to its response DTO.
     private static ProductVariantResponse MapVariantResponse(
         ProductVariant variant)
     {

@@ -1,5 +1,4 @@
-﻿
-using System.Text.Json;
+﻿using System.Text.Json;
 using Feryal.Application.DTOs.Categories;
 using Feryal.Application.DTOs.Common;
 using Feryal.Application.Events.Categories;
@@ -10,14 +9,25 @@ using Microsoft.Extensions.Logging;
 
 namespace Feryal.Application.Services.Categories;
 
+// Handles category-related business operations, including creation, updates, deletion, and cache invalidation.
 public class CategoryService : ICategoryService
 {
+    // Provides database operations for retrieving and managing categories.
     private readonly ICategoryRepository _categoryRepository;
+
+    // Coordinates saving changes to the database.
     private readonly IUnitOfWork _unitOfWork;
+
+    // Records category-related events and operational information.
     private readonly ILogger<CategoryService> _logger;
+
+    // Provides cached category data and supports cache invalidation.
     private readonly ICategoryCacheService _categoryCacheService;
+
+    // Stores cache invalidation events in the outbox for reliable processing.
     private readonly IOutboxMessageRepository _outboxMessageRepository;
 
+    // Initializes the category service with its required dependencies.
     public CategoryService(
         ICategoryRepository categoryRepository,
         IUnitOfWork unitOfWork,
@@ -32,6 +42,7 @@ public class CategoryService : ICategoryService
         _outboxMessageRepository = outboxMessageRepository;
     }
 
+    // Retrieves a paginated list of categories after validating the pagination parameters.
     public async Task<PagedResponse<CategoryResponse>> GetAllAsync(
         int pageNumber,
         int pageSize,
@@ -55,6 +66,7 @@ public class CategoryService : ICategoryService
             cancellationToken);
     }
 
+    // Retrieves a category by its ID from the cache or throws an exception if it is not found.
     public async Task<CategoryResponse> GetByIdAsync(
         int id,
         CancellationToken cancellationToken)
@@ -72,6 +84,7 @@ public class CategoryService : ICategoryService
         return category;
     }
 
+    // Creates a new category after validating the request and checking for duplicate names.
     public async Task<CategoryResponse> CreateAsync(
         CreateCategoryRequest request,
         CancellationToken cancellationToken)
@@ -127,6 +140,7 @@ public class CategoryService : ICategoryService
         return MapToResponse(category);
     }
 
+    // Updates an existing category after validating the supplied fields and checking for duplicate names.
     public async Task<CategoryResponse> UpdateAsync(
         int id,
         UpdateCategoryRequest request,
@@ -224,6 +238,7 @@ public class CategoryService : ICategoryService
         return MapToResponse(category);
     }
 
+    // Deletes a category if it exists and has no associated products.
     public async Task DeleteAsync(
         int id,
         CancellationToken cancellationToken)
@@ -260,6 +275,7 @@ public class CategoryService : ICategoryService
             id);
     }
 
+    // Activates an existing category and schedules cache invalidation.
     public async Task<CategoryResponse> ActivateAsync(
         int id,
         CancellationToken cancellationToken)
@@ -288,6 +304,7 @@ public class CategoryService : ICategoryService
         return MapToResponse(category);
     }
 
+    // Deactivates an existing category and schedules cache invalidation.
     public async Task<CategoryResponse> DeactivateAsync(
         int id,
         CancellationToken cancellationToken)
@@ -316,6 +333,7 @@ public class CategoryService : ICategoryService
         return MapToResponse(category);
     }
 
+    // Creates and stores an outbox message requesting invalidation of category caches.
     private void AddCacheInvalidationMessage(int? categoryId)
     {
         var cacheInvalidationEvent =
@@ -331,6 +349,7 @@ public class CategoryService : ICategoryService
         _outboxMessageRepository.Add(outboxMessage);
     }
 
+    // Maps a category entity to its response DTO.
     private static CategoryResponse MapToResponse(Category category)
     {
         return new CategoryResponse

@@ -1,5 +1,4 @@
-﻿
-using Feryal.Application.DTOs.Delivery;
+﻿using Feryal.Application.DTOs.Delivery;
 using Feryal.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,12 +10,14 @@ public sealed class DeliveryCitiesController : ControllerBase
 {
     private readonly IDeliverySettingsService _deliverySettingsService;
 
+    // Initializes the controller with the delivery settings service.
     public DeliveryCitiesController(
         IDeliverySettingsService deliverySettingsService)
     {
         _deliverySettingsService = deliverySettingsService;
     }
 
+    // Creates a new delivery city and returns its location and details.
     [HttpPost]
     public async Task<IActionResult> Create(
         [FromBody] CreateDeliveryCityRequest request,
@@ -32,6 +33,7 @@ public sealed class DeliveryCitiesController : ControllerBase
             result);
     }
 
+    // Updates the specified delivery city's properties using the provided patch request.
     [HttpPatch("{id:int}")]
     public async Task<IActionResult> Patch(
         int id,
@@ -54,6 +56,7 @@ public sealed class DeliveryCitiesController : ControllerBase
         return Ok(result);
     }
 
+    // Retrieves all delivery cities, including active and inactive cities, for administration.
     // Admin: all cities, active and inactive.
     [HttpGet("admin")]
     public async Task<IActionResult> GetAllForAdmin(
@@ -78,6 +81,7 @@ public sealed class DeliveryCitiesController : ControllerBase
         return Ok(result);
     }
 
+    // Retrieves only active delivery cities for customers with pagination.
     // Customer: active cities only.
     [HttpGet("active")]
     public async Task<IActionResult> GetActiveForCustomers(
@@ -102,6 +106,7 @@ public sealed class DeliveryCitiesController : ControllerBase
         return Ok(result);
     }
 
+    // Retrieves a delivery city by its ID.
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(
         int id,
@@ -122,6 +127,7 @@ public sealed class DeliveryCitiesController : ControllerBase
         return Ok(result);
     }
 
+    // Validates that the page number is at least 1 and the page size is between 1 and 100.
     private static bool IsValidPagination(
         int pageNumber,
         int pageSize)

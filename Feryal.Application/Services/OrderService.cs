@@ -7,9 +7,12 @@ using Feryal.Domain.Entities;
 using Feryal.Domain.Enums;
 
 namespace Feryal.Application.Services;
+// Handles checkout, inventory reservations, order confirmation, and order retrieval and management.
 
 public sealed class OrderService : IOrderService
 {
+    // Defines how long an inventory reservation remains active before expiring.
+
     private static readonly TimeSpan ReservationLifetime =
         TimeSpan.FromMinutes(10);
 
@@ -36,6 +39,8 @@ public sealed class OrderService : IOrderService
         _transactions = transactions;
     }
 
+
+    // Builds the checkout response with cart items, customer details, and available delivery options.
     public async Task<CheckoutResponse> GetCheckoutAsync(
         int userId,
         CancellationToken cancellationToken)
@@ -71,26 +76,23 @@ public sealed class OrderService : IOrderService
                     variant.StockQuantity.Value >= item.Quantity;
 
                 return new CheckoutItemResponse(
-                    item.Id,
-                    variant.Id,
-                    variant.Product.Name,
-                    BuildVariantDescription(variant),
-                     variant.Product.Images,
-                    variant.Product.Images
-                        .FirstOrDefault(x => x.IsPrimary)?.ImageUrl,
-                     
-                    variant.Price ?? 0m,
-                   
-                    variant.DiscountPercentage,
-                    finalPrice,
-                    item.Quantity,
-                    variant.StockQuantity,
-                    decimal.Round(
-                        finalPrice * item.Quantity,
-                        2,
-                        MidpointRounding.AwayFromZero),
-                    canOrder
-                    );
+       item.Id,
+       variant.Id,
+       variant.Product.Name,
+       BuildVariantDescription(variant),
+       variant.Product.Images
+           .FirstOrDefault(x => x.IsPrimary)?.ImageUrl,
+       variant.Price ?? 0m,
+       variant.DiscountPercentage,
+       finalPrice,
+       item.Quantity,
+       variant.StockQuantity,
+       decimal.Round(
+           finalPrice * item.Quantity,
+           2,
+           MidpointRounding.AwayFromZero),
+       canOrder
+   );
             })
             .ToList();
 
@@ -130,6 +132,7 @@ public sealed class OrderService : IOrderService
                 .ToList());
     }
 
+    // Creates an inventory reservation or returns an existing usable reservation for the same idempotency key.
 
     public async Task<CreateReservationResponse> CreateReservationAsync(
         int userId,
@@ -207,7 +210,7 @@ public sealed class OrderService : IOrderService
             cancellationToken);
     }
 
-
+    // Retrieves a reservation status for the specified customer.
     public async Task<ReservationStatusResponse?> GetReservationStatusAsync(
         int userId,
         int reservationId,
@@ -240,6 +243,8 @@ public sealed class OrderService : IOrderService
             reservation.ExpiresAt,
             reservation.OrderId);
     }
+
+    // Releases an active reservation and returns its reserved stock to inventory.
 
     public async Task<bool> ReleaseReservationAsync(
     int userId,
@@ -307,7 +312,7 @@ public sealed class OrderService : IOrderService
             cancellationToken);
     }
 
-
+    // Confirms an order using the customer's saved home-delivery details.
     public async Task<Order> ConfirmOrderAsync(
         int userId,
         int reservationId,
@@ -376,7 +381,7 @@ public sealed class OrderService : IOrderService
                 "The created order could not be loaded.");
     }
 
-
+    // Retrieves the customer's orders in a paginated response.
     public async Task<PagedOrdersResponse> GetMyOrdersAsync(
      int userId,
      int pageNumber,
@@ -405,6 +410,9 @@ public sealed class OrderService : IOrderService
             result.TotalCount,
             totalPages);
     }
+
+    // Retrieves a specific order if it belongs to the specified customer.
+
     public async Task<Order?> GetOrderByIdAsync(
     int userId,
     int orderId,
@@ -418,6 +426,9 @@ public sealed class OrderService : IOrderService
             userId,
             cancellationToken);
     }
+
+    // Retrieves detailed information about one of the customer's orders.
+
     public async Task<OrderDetailsResponse?> GetMyOrderAsync(
         int userId,
         int orderId,
@@ -434,6 +445,7 @@ public sealed class OrderService : IOrderService
         return order is null ? null : MapOrder(order);
     }
 
+    // Retrieves a filtered and paginated list of orders for administrators.
     public async Task<(List<Order> Items, int TotalCount)> GetAdminOrdersAsync(
       int pageNumber,
       int pageSize,
@@ -470,6 +482,7 @@ public sealed class OrderService : IOrderService
             cancellationToken);
     }
 
+    // Retrieves order details for administrative access.
     public async Task<OrderDetailsResponse?> GetAdminOrderAsync(
         int orderId,
         CancellationToken cancellationToken)
@@ -482,6 +495,9 @@ public sealed class OrderService : IOrderService
 
         return order is null ? null : MapOrder(order);
     }
+
+
+    // Updates an order status transactionally and schedules order-cache invalidation.
 
     public async Task<OrderDetailsResponse?> UpdateOrderStatusAsync(
         int orderId,
@@ -596,7 +612,7 @@ public sealed class OrderService : IOrderService
     //    return result;
     //}
 
-
+    // Marks a reservation as expired and releases its reserved stock within the current transaction.
     private async Task ExpireReservationWithinTransactionAsync(
         InventoryReservation reservation,
         CancellationToken cancellationToken)
@@ -636,7 +652,7 @@ public sealed class OrderService : IOrderService
         }
     }
 
-
+    // Adds an outbox message to invalidate cached order data for a customer.
     private void AddOrderCacheOutbox(int userId)
     {
         string payload = JsonSerializer.Serialize(
@@ -648,6 +664,8 @@ public sealed class OrderService : IOrderService
                 payload));
     }
 
+
+    // Adds an outbox message to invalidate cached cart data for a customer.
     private void AddCartCacheOutbox(int userId)
     {
         var cacheEvent =
@@ -662,11 +680,13 @@ public sealed class OrderService : IOrderService
                 payload));
     }
 
+    // Generates a unique order number with a timestamp and GUID.
     private static string GenerateOrderNumber()
     {
         return $"FY-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..32];
     }
 
+    // Validates required text, trims whitespace, and enforces a maximum length.
     private static string RequiredText(
         string? value,
         int maxLength,
@@ -688,6 +708,7 @@ public sealed class OrderService : IOrderService
         return result;
     }
 
+    // Normalizes optional text and enforces its maximum length when provided.
     private static string? OptionalText(
         string? value,
         int maxLength)
@@ -708,6 +729,8 @@ public sealed class OrderService : IOrderService
         return result;
     }
 
+
+    // Builds a readable description from a variant's description, color, size, and scent.
     private static string? BuildVariantDescription(
         ProductVariant variant)
     {
@@ -738,6 +761,8 @@ public sealed class OrderService : IOrderService
             : string.Join(" | ", parts);
     }
 
+
+    // Maps an order entity and its items to the order details response DTO.
     private static OrderDetailsResponse MapOrder(Order order)
     {
         var items = order.Items.Select(item =>
@@ -781,6 +806,7 @@ public sealed class OrderService : IOrderService
             items);
     }
 
+    // Ensures an identifier is a positive integer.
     private static void ValidateId(int id, string name)
     {
         if (id <= 0)
@@ -791,6 +817,7 @@ public sealed class OrderService : IOrderService
         }
     }
 
+    // Validates the customer ID and pagination parameters.
     private static void ValidatePagination(
         int userId,
         int pageNumber,
@@ -810,6 +837,8 @@ public sealed class OrderService : IOrderService
                 "Page size must be between 1 and 100.");
         }
     }
+
+    // Creates a reservation transactionally, validates cart items, and reserves the required stock.
     private async Task<CreateReservationResponse> CreateReservationCoreAsync(
     int userId,
     string idempotencyKey,
@@ -921,6 +950,8 @@ public sealed class OrderService : IOrderService
             cancellationToken);
     }
 
+
+    // Validates the reservation and delivery details, creates the order, commits stock, and clears the cart.
     public async Task<OrderDetailsResponse> ConfirmOrderAsync(
         int userId,
         ConfirmOrderRequest request,

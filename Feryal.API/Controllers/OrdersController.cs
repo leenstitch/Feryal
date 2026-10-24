@@ -13,11 +13,13 @@ public sealed class OrdersController : ControllerBase
 {
     private readonly IOrderService _orderService;
 
+    // Initializes the controller with the order service.
     public OrdersController(IOrderService orderService)
     {
         _orderService = orderService;
     }
 
+    // Confirms the authenticated user's order using an idempotency key and returns the created order details.
     [HttpPost]
     [ProducesResponseType(
         typeof(OrderDetailsResponse),
@@ -53,6 +55,8 @@ public sealed class OrdersController : ControllerBase
             new { orderId = order.Id },
             order);
     }
+
+    // Retrieves the authenticated user's orders with pagination.
     [HttpGet("my")]
     [ProducesResponseType(
     typeof(PagedOrdersResponse),
@@ -77,6 +81,7 @@ public sealed class OrdersController : ControllerBase
 
         return Ok(response);
     }
+
     //[HttpGet("my")]
     //[ProducesResponseType(
     //    typeof(PagedOrdersResponse),
@@ -102,6 +107,7 @@ public sealed class OrdersController : ControllerBase
     //    return Ok(response);
     //}
 
+    // Retrieves the details of a specific order belonging to the authenticated user.
     [HttpGet("my/{orderId:int}")]
     [ProducesResponseType(
         typeof(OrderDetailsResponse),
@@ -126,6 +132,7 @@ public sealed class OrdersController : ControllerBase
         return order is null ? NotFound() : Ok(order);
     }
 
+    // Retrieves the authenticated user's ID from the claims principal.
     private int? GetUserId()
     {
         string? value =

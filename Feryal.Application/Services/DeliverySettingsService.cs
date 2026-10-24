@@ -1,5 +1,4 @@
-﻿
-using System.Data;
+﻿using System.Data;
 using System.Text.Json;
 using Feryal.Application.DTOs.Common;
 using Feryal.Application.DTOs.Delivery;
@@ -7,18 +6,34 @@ using Feryal.Application.Events.Delivery;
 using Feryal.Application.Interfaces;
 using Feryal.Domain.Entities;
 using Feryal.Application.Interfaces;
+
 namespace Feryal.Application.Delivery.Services;
 
+// Handles delivery city and pickup point operations, including validation, persistence, and cache invalidation.
 public sealed class DeliverySettingsService : IDeliverySettingsService
 {
+    // Provides database operations for delivery cities.
     private readonly IRepository<DeliveryCity> _cityRepository;
+
+    // Provides database operations for pickup points.
     private readonly IRepository<PickupPoint> _pickupPointRepository;
+
+    // Provides query operations for checking delivery settings and retrieving related data.
     private readonly IDeliverySettingsQueryRepository _queryRepository;
+
+    // Retrieves cached delivery settings and manages cache invalidation.
     private readonly IDeliverySettingsCacheService _cacheService;
+
+    // Stores cache invalidation events in the outbox for reliable processing.
     private readonly IOutboxMessageRepository _outboxRepository;
+
+    // Coordinates saving changes to the database.
     private readonly IUnitOfWork _unitOfWork;
+
+    // Executes operations within database transactions.
     private readonly ITransactionManager _transactionManager;
 
+    // Initializes the delivery settings service with its required dependencies.
     public DeliverySettingsService(
         IRepository<DeliveryCity> cityRepository,
         IRepository<PickupPoint> pickupPointRepository,
@@ -37,6 +52,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
         _transactionManager = transactionManager;
     }
 
+    // Retrieves a paginated list of delivery cities, optionally filtering for active cities only.
     public Task<PagedResponse<DeliveryCityResponse>> GetCitiesAsync(
         int pageNumber,
         int pageSize,
@@ -52,6 +68,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
             cancellationToken);
     }
 
+    // Retrieves a delivery city by its ID after validating the ID.
     public Task<DeliveryCityResponse?> GetCityByIdAsync(
         int cityId,
         CancellationToken cancellationToken)
@@ -63,6 +80,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
             cancellationToken);
     }
 
+    // Retrieves a paginated list of pickup points, optionally filtering for active pickup points only.
     public Task<PagedResponse<PickupPointResponse>> GetPickupPointsAsync(
         int pageNumber,
         int pageSize,
@@ -78,6 +96,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
             cancellationToken);
     }
 
+    // Retrieves a pickup point by its ID after validating the ID.
     public Task<PickupPointResponse?> GetPickupPointByIdAsync(
         int pickupPointId,
         CancellationToken cancellationToken)
@@ -89,6 +108,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
             cancellationToken);
     }
 
+    // Creates a delivery city after validating its name and fee, then saves a cache invalidation event.
     public async Task<DeliveryCityResponse> CreateCityAsync(
         CreateDeliveryCityRequest request,
         CancellationToken cancellationToken)
@@ -120,12 +140,12 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
 
                 await _cityRepository.AddAsync(city, token);
 
-                // Save the city first to generate its ID.
+                // Saves the city first to generate its ID.
                 await _unitOfWork.SaveChangesAsync(token);
 
                 AddCacheInvalidation(city.Id, null);
 
-                // Save the outbox message in the same transaction.
+                // Saves the outbox message within the same transaction.
                 await _unitOfWork.SaveChangesAsync(token);
 
                 return MapCity(city);
@@ -134,6 +154,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
             cancellationToken);
     }
 
+    // Partially updates a delivery city's name, fee, or active status and schedules cache invalidation.
     public async Task<DeliveryCityResponse?> PatchCityAsync(
         int cityId,
         PatchDeliveryCityRequest request,
@@ -223,6 +244,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
             cancellationToken);
     }
 
+    // Creates a pickup point after validating its name, address, and fee, then schedules cache invalidation.
     public async Task<PickupPointResponse> CreatePickupPointAsync(
         CreatePickupPointRequest request,
         CancellationToken cancellationToken)
@@ -252,7 +274,8 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
                     throw new InvalidOperationException(
                         "A pickup point  with this name already exists.");
                 }
-                // A pickup point is independent of DeliveryCity.
+
+                // Creates a pickup point independently of any delivery city.
                 var point = new PickupPoint(
                     name,
                     address,
@@ -260,7 +283,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
 
                 await _pickupPointRepository.AddAsync(point, token);
 
-                // Save first to generate the pickup point ID.
+                // Saves the pickup point first to generate its ID.
                 await _unitOfWork.SaveChangesAsync(token);
 
                 AddCacheInvalidation(null, point.Id);
@@ -273,6 +296,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
             cancellationToken);
     }
 
+    // Partially updates a pickup point's name, address, fee, or active status.
     public async Task<PickupPointResponse?> PatchPickupPointAsync(
         int pickupPointId,
         PatchPickupPointRequest request,
@@ -338,7 +362,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
 
                 point.Update(name, address, fee);
 
-                // Activation and deactivation are both handled by PATCH.
+                // Applies activation or deactivation when an active status is provided.
                 if (isActive.HasValue)
                 {
                     if (isActive.Value)
@@ -363,6 +387,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
             cancellationToken);
     }
 
+    // Creates an outbox message requesting cache invalidation for the specified delivery city or pickup point.
     private void AddCacheInvalidation(
         int? deliveryCityId,
         int? pickupPointId)
@@ -380,6 +405,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
         _outboxRepository.Add(message);
     }
 
+    // Validates that a string is not empty and does not exceed the specified maximum length.
     private static string ValidateName(
         string? value,
         int maxLength,
@@ -402,6 +428,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
         return result;
     }
 
+    // Validates that a delivery or pickup fee is non-negative.
     private static void ValidateFee(
         decimal fee,
         string fieldName)
@@ -414,6 +441,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
         }
     }
 
+    // Reads a non-negative decimal fee from a JSON element.
     private static decimal ReadFee(
         JsonElement element,
         string fieldName)
@@ -429,6 +457,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
         return fee;
     }
 
+    // Reads an optional Boolean value from a JSON element, returning null when it is undefined.
     private static bool? ReadOptionalBoolean(
         JsonElement element,
         string fieldName)
@@ -448,6 +477,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
             $"{fieldName} must be true or false.");
     }
 
+    // Validates that the supplied ID is a positive integer.
     private static void ValidateId(
         int id,
         string fieldName)
@@ -460,6 +490,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
         }
     }
 
+    // Validates the page number and page size for paginated queries.
     private static void ValidatePagination(
         int pageNumber,
         int pageSize)
@@ -479,6 +510,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
         }
     }
 
+    // Maps a delivery city entity to its response DTO.
     private static DeliveryCityResponse MapCity(
         DeliveryCity city)
     {
@@ -493,6 +525,7 @@ public sealed class DeliverySettingsService : IDeliverySettingsService
         };
     }
 
+    // Maps a pickup point entity to its response DTO.
     private static PickupPointResponse MapPickupPoint(
         PickupPoint point)
     {

@@ -1,5 +1,4 @@
-﻿
-using System.Data;
+﻿using System.Data;
 using System.Text.Json;
 using Feryal.Application.DTOs.Common;
 using Feryal.Application.DTOs.Products;
@@ -12,13 +11,22 @@ using Feryal.Domain.Entities;
 
 namespace Feryal.Infrastructure.Products;
 
+// Manages product variant retrieval, updates, status changes, and customer visibility.
 public sealed class ProductVariantService : IProductVariantService
 {
+    // Provides database operations for products and their variants.
     private readonly IProductRepository _products;
+
+    // Stores cache invalidation events in the outbox.
     private readonly IOutboxMessageRepository _outbox;
+
+    // Coordinates saving changes to the database.
     private readonly IUnitOfWork _unitOfWork;
+
+    // Executes operations within database transactions.
     private readonly ITransactionManager _transactions;
 
+    // Initializes the service with its required dependencies.
     public ProductVariantService(
         IProductRepository products,
         IOutboxMessageRepository outbox,
@@ -31,6 +39,7 @@ public sealed class ProductVariantService : IProductVariantService
         _transactions = transactions;
     }
 
+    // Retrieves a paginated list of variants for a product.
     public async ValueTask<PagedResponse<ProductVariantResponse>?>
         GetVariantsAsync(
             int productId,
@@ -49,11 +58,13 @@ public sealed class ProductVariantService : IProductVariantService
             parameters,
             cancellationToken);
 
+        // Return null when the requested product does not exist.
         if (!result.ProductExists)
         {
             return null;
         }
 
+        // Convert variant entities into response DTOs.
         var items = result.Items
             .Select(MapVariant)
             .ToList();
@@ -67,6 +78,7 @@ public sealed class ProductVariantService : IProductVariantService
         };
     }
 
+    // Retrieves a paginated list of available variants for a product.
     public async ValueTask<PagedResponse<ProductVariantResponse>?>
         GetAvailableVariantsAsync(
             int productId,
@@ -86,11 +98,13 @@ public sealed class ProductVariantService : IProductVariantService
                 parameters,
                 cancellationToken);
 
+        // Return null when the requested product does not exist.
         if (!result.ProductExists)
         {
             return null;
         }
 
+        // Convert the available variant entities into response DTOs.
         var items = result.Items
             .Select(MapVariant)
             .ToList();
@@ -105,6 +119,7 @@ public sealed class ProductVariantService : IProductVariantService
     }
 
 
+    // Updates the details of an existing product variant.
     public async Task<ProductVariantResponse?> UpdateVariantAsync(
         int variantId,
         UpdateProductVariantRequest request,
@@ -122,6 +137,7 @@ public sealed class ProductVariantService : IProductVariantService
         return await _transactions.ExecuteAsync(
             async token =>
             {
+                // Retrieve the variant for update within the transaction.
                 var variant = await _products.GetVariantByIdForUpdateAsync(
                     variantId,
                     token);
@@ -245,12 +261,14 @@ public sealed class ProductVariantService : IProductVariantService
                     discountPercentage = newDiscountPercentage;
                 }
 
+                // Apply the validated values to the variant.
                 variant.UpdateDetails(
                     description,
                     price,
                     stockQuantity,
                     discountPercentage);
 
+                // Request cache invalidation for the related product.
                 AddInvalidation(variant.ProductId);
 
                 await _unitOfWork.SaveChangesAsync(token);
@@ -262,6 +280,7 @@ public sealed class ProductVariantService : IProductVariantService
     }
 
 
+    // Activates a product variant.
     public Task<bool> ActivateAsync(
         int variantId,
         CancellationToken cancellationToken)
@@ -272,6 +291,7 @@ public sealed class ProductVariantService : IProductVariantService
             cancellationToken);
     }
 
+    // Deactivates a product variant.
     public Task<bool> DeactivateAsync(
         int variantId,
         CancellationToken cancellationToken)
@@ -282,6 +302,7 @@ public sealed class ProductVariantService : IProductVariantService
             cancellationToken);
     }
 
+    // Makes a product variant visible to customers.
     public Task<bool> ShowAsync(
         int variantId,
         CancellationToken cancellationToken)
@@ -292,6 +313,7 @@ public sealed class ProductVariantService : IProductVariantService
             cancellationToken);
     }
 
+    // Hides a product variant from customers.
     public Task<bool> HideAsync(
         int variantId,
         CancellationToken cancellationToken)
@@ -302,6 +324,7 @@ public sealed class ProductVariantService : IProductVariantService
             cancellationToken);
     }
 
+    // Applies the requested state change to a variant within a transaction.
     private async Task<bool> ChangeStateAsync(
         int variantId,
         Action<ProductVariant> change,
@@ -315,6 +338,7 @@ public sealed class ProductVariantService : IProductVariantService
         return await _transactions.ExecuteAsync(
             async token =>
             {
+                // Retrieve the variant for update.
                 var variant =
                     await _products.GetVariantByIdForUpdateAsync(
                         variantId,
@@ -325,8 +349,10 @@ public sealed class ProductVariantService : IProductVariantService
                     return false;
                 }
 
+                // Execute the supplied activation, deactivation, or visibility action.
                 change(variant);
 
+                // Request cache invalidation for the related product.
                 AddInvalidation(variant.ProductId);
 
                 await _unitOfWork.SaveChangesAsync(token);
@@ -337,6 +363,7 @@ public sealed class ProductVariantService : IProductVariantService
             cancellationToken);
     }
 
+    // Creates an outbox message requesting cache invalidation for a product.
     private void AddInvalidation(int productId)
     {
         var payload = JsonSerializer.Serialize(
@@ -348,6 +375,7 @@ public sealed class ProductVariantService : IProductVariantService
                 payload));
     }
 
+    // Maps a product variant entity to its response DTO.
     public static ProductVariantResponse MapVariant(
         ProductVariant variant)
     {

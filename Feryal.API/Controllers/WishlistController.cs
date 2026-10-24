@@ -13,12 +13,14 @@ public sealed class WishlistController : ControllerBase
 {
     private readonly IWishlistService _wishlistService;
 
+    // Initializes the controller with the wishlist service.
     public WishlistController(
         IWishlistService wishlistService)
     {
         _wishlistService = wishlistService;
     }
 
+    // Retrieves the authenticated user's wishlist items with pagination.
     [HttpGet]
     [ProducesResponseType(
         typeof(WishlistItemsPageResponse),
@@ -54,6 +56,7 @@ public sealed class WishlistController : ControllerBase
         return Ok(result);
     }
 
+    // Adds a product variant to the authenticated user's wishlist.
     [HttpPost("{productVariantId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -84,6 +87,7 @@ public sealed class WishlistController : ControllerBase
         }
     }
 
+    // Removes a product variant from the authenticated user's wishlist.
     [HttpDelete("{productVariantId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -114,6 +118,7 @@ public sealed class WishlistController : ControllerBase
         }
     }
 
+    // Retrieves the authenticated user's ID from the claims principal.
     private int GetCurrentUserId()
     {
         var userIdValue = User.FindFirstValue(

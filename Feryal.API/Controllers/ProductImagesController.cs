@@ -1,5 +1,4 @@
-﻿
-using Feryal.Application.Products.Images;
+﻿using Feryal.Application.Products.Images;
 using Feryal.Application.Products.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -34,11 +33,13 @@ public sealed class ProductImagesController : ControllerBase
 
     private readonly IProductImageService _imageService;
 
+    // Initializes the controller with the product image service.
     public ProductImagesController(IProductImageService imageService)
     {
         _imageService = imageService;
     }
 
+    // Uploads new images for a product and optionally designates one of them as the primary image.
     [HttpPost]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -120,6 +121,7 @@ public sealed class ProductImagesController : ControllerBase
         }
     }
 
+    // Updates a product's images by keeping selected existing images, adding new images, and optionally selecting a primary image.
     [HttpPut]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -242,6 +244,7 @@ public sealed class ProductImagesController : ControllerBase
         }
     }
 
+    // Deletes a specific image from a product.
     [HttpDelete("{imageId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -278,6 +281,7 @@ public sealed class ProductImagesController : ControllerBase
         }
     }
 
+    // Validates uploaded images against file size, extension, and content type restrictions.
     private static bool ValidateImages(
         IReadOnlyCollection<IFormFile> images,
         out string? error)
@@ -316,6 +320,7 @@ public sealed class ProductImagesController : ControllerBase
     }
 
 
+    // Creates product image upload objects and tracks the opened streams for later disposal.
     private static List<ProductImageUpload> CreateUploads(
         IReadOnlyCollection<IFormFile> files,
         List<Stream> openedStreams)

@@ -13,11 +13,13 @@ public sealed class CheckoutController : ControllerBase
 {
     private readonly IOrderService _orderService;
 
+    // Initializes the controller with the order service.
     public CheckoutController(IOrderService orderService)
     {
         _orderService = orderService;
     }
 
+    // Retrieves the checkout information for the authenticated user.
     [HttpGet]
     [ProducesResponseType(typeof(CheckoutResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCheckout(
@@ -37,6 +39,7 @@ public sealed class CheckoutController : ControllerBase
         return Ok(response);
     }
 
+    // Creates a reservation for the authenticated user's checkout using an idempotency key.
     [HttpPost("reservations")]
     [ProducesResponseType(
      typeof(CreateReservationResponse),
@@ -68,6 +71,7 @@ public sealed class CheckoutController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, response);
     }
 
+    // Retrieves the status of a reservation belonging to the authenticated user.
     [HttpGet("reservations/{reservationId:int}")]
     [ProducesResponseType(
         typeof(ReservationStatusResponse),
@@ -92,6 +96,7 @@ public sealed class CheckoutController : ControllerBase
         return response is null ? NotFound() : Ok(response);
     }
 
+    // Releases a reservation belonging to the authenticated user.
     [HttpDelete("reservations/{reservationId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> ReleaseReservation(
@@ -113,6 +118,7 @@ public sealed class CheckoutController : ControllerBase
         return NoContent();
     }
 
+    // Retrieves the authenticated user's ID from the claims principal.
     private int? GetUserId()
     {
         string? value =

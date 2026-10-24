@@ -12,12 +12,14 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
 
+    // Initializes the controller with the authentication service.
     public AuthController(
         IAuthService authService)
     {
         _authService = authService;
     }
 
+    // Registers a new user and returns the authentication response.
     [AllowAnonymous]
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(
@@ -32,6 +34,7 @@ public class AuthController : ControllerBase
         return Ok(response);
     }
 
+    // Authenticates a user and returns the authentication response.
     [AllowAnonymous]
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(
@@ -46,6 +49,7 @@ public class AuthController : ControllerBase
         return Ok(response);
     }
 
+    // Refreshes the user's authentication tokens.
     [AllowAnonymous]
     [HttpPost("refresh")]
     public async Task<ActionResult<AuthResponse>> Refresh(
@@ -60,6 +64,7 @@ public class AuthController : ControllerBase
         return Ok(response);
     }
 
+    // Logs out the authenticated user by invalidating their active authentication session.
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(
